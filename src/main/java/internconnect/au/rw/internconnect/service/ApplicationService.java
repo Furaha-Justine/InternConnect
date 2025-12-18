@@ -1,56 +1,73 @@
 package internconnect.au.rw.internconnect.service;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import java.util.UUID;
-import org.springframework.stereotype.Service;
-
 import internconnect.au.rw.internconnect.model.Application;
 import internconnect.au.rw.internconnect.repository.ApplicationRepository;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
+/**
+ * Service for application management operations.
+ */
 @Service
 public class ApplicationService {
 
-    private final ApplicationRepository repo;
+  private static final Logger logger = LoggerFactory.getLogger(ApplicationService.class);
 
-    public ApplicationService(ApplicationRepository repo) {
-        this.repo = repo;
-    }
+  private final ApplicationRepository applicationRepository;
 
-    public Application apply(Application app) {
-        return repo.save(app);
-    }
+  public ApplicationService(ApplicationRepository applicationRepository) {
+    this.applicationRepository = applicationRepository;
+  }
 
-    public Page<Application> forStudent(UUID studentId, Pageable pageable) {
-        return repo.findByStudentProfileId(studentId, pageable);
-    }
+  public Application apply(Application application) {
+    logger.info("Creating new application for internship: {}", application.getInternship().getId());
+    return applicationRepository.save(application);
+  }
 
-    public Page<Application> forInternship(UUID internshipId, Pageable pageable) {
-        return repo.findByInternshipId(internshipId, pageable);
-    }
+  public Page<Application> getByStudentId(UUID studentId, Pageable pageable) {
+    logger.debug("Fetching applications for student ID: {}", studentId);
+    return applicationRepository.findByStudentProfileId(studentId, pageable);
+  }
 
-    public Application get(UUID id) {
-        return repo.findById(id).orElse(null);
-    }
+  public Page<Application> getByInternshipId(UUID internshipId, Pageable pageable) {
+    logger.debug("Fetching applications for internship ID: {}", internshipId);
+    return applicationRepository.findByInternshipId(internshipId, pageable);
+  }
 
-    public Page<Application> list(Pageable pageable) {
-        return repo.findAll(pageable);
-    }
+  public Application get(UUID id) {
+    logger.debug("Fetching application with ID: {}", id);
+    return applicationRepository.findById(id).orElse(null);
+  }
 
-    public Application update(UUID id, Application a) {
-        a.setId(id);
-        return repo.save(a);
-    }
+  public Page<Application> list(Pageable pageable) {
+    logger.debug("Listing all applications");
+    return applicationRepository.findAll(pageable);
+  }
 
-    public void delete(UUID id) {
-        repo.deleteById(id);
-    }
+  public Application update(UUID id, Application application) {
+    logger.info("Updating application with ID: {}", id);
+    application.setId(id);
+    return applicationRepository.save(application);
+  }
 
-    public Page<Application> forCompanyEmail(String email, Pageable pageable) {
-        return repo.findByCompanyUserEmail(email, pageable);
-    }
+  public void delete(UUID id) {
+    logger.info("Deleting application with ID: {}", id);
+    applicationRepository.deleteById(id);
+  }
 
-    public boolean alreadyApplied(UUID studentProfileId, UUID internshipId) {
-        return repo.existsByStudentProfileIdAndInternshipId(studentProfileId, internshipId);
-    }
+  public Page<Application> getByCompanyEmail(String email, Pageable pageable) {
+    logger.debug("Fetching applications for company email: {}", email);
+    return applicationRepository.findByCompanyUserEmail(email, pageable);
+  }
+
+  public boolean hasAlreadyApplied(UUID studentProfileId, UUID internshipId) {
+    logger.debug("Checking if student {} already applied to internship {}", studentProfileId,
+        internshipId);
+    return applicationRepository.existsByStudentProfileIdAndInternshipId(studentProfileId,
+        internshipId);
+  }
 }

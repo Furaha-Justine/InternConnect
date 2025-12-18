@@ -1,7 +1,16 @@
 package internconnect.au.rw.internconnect.controller;
 
+import internconnect.au.rw.internconnect.model.CompanyProfile;
+import internconnect.au.rw.internconnect.model.User;
+import internconnect.au.rw.internconnect.service.CompanyProfileService;
+import internconnect.au.rw.internconnect.service.SecurityService;
+import internconnect.au.rw.internconnect.service.UserService;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,57 +21,62 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import internconnect.au.rw.internconnect.model.CompanyProfile;
-import internconnect.au.rw.internconnect.service.CompanyProfileService;
-import org.springframework.security.access.prepost.PreAuthorize;
-import internconnect.au.rw.internconnect.service.UserService;
-import org.springframework.security.core.context.SecurityContextHolder;
-import internconnect.au.rw.internconnect.model.User;
-import java.util.UUID;
-
+/**
+ * Controller for company profile management endpoints.
+ */
 @RestController
 @RequestMapping("/api/company-profiles")
 @CrossOrigin
 public class CompanyProfileController {
 
-    private final CompanyProfileService service;
-    private final UserService userService;
+  private static final Logger logger = LoggerFactory.getLogger(CompanyProfileController.class);
 
-    public CompanyProfileController(CompanyProfileService service, UserService userService) {
-        this.service = service;
-        this.userService = userService;
-    }
+  private final CompanyProfileService companyProfileService;
+  private final UserService userService;
+  private final SecurityService securityService;
 
-    @GetMapping
-    public Page<CompanyProfile> list(Pageable pageable) {
-        return service.list(pageable);
-    }
+  public CompanyProfileController(CompanyProfileService companyProfileService,
+      UserService userService, SecurityService securityService) {
+    this.companyProfileService = companyProfileService;
+    this.userService = userService;
+    this.securityService = securityService;
+  }
 
-    @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_COMPANY')")
-    public CompanyProfile create(@RequestBody CompanyProfile c) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userService.findByEmail(email);
-        c.setUser(currentUser);
-        return service.create(c);
-    }
+  @GetMapping
+  public Page<CompanyProfile> list(Pageable pageable) {
+    logger.debug("Listing all company profiles");
+    return companyProfileService.list(pageable);
+  }
 
-    @GetMapping("/{id}")
-    public CompanyProfile get(@PathVariable UUID id) {
-        return service.get(id);
-    }
+  @PostMapping
+  @PreAuthorize("hasAuthority('ROLE_COMPANY')")
+  public CompanyProfile create(@RequestBody CompanyProfile companyProfile) {
+    logger.info("Creating new company profile");
+    String email = securityService.getCurrentUserEmail();
+    User currentUser = userService.findByEmail(email);
+    companyProfile.setUser(currentUser);
+    return companyProfileService.create(companyProfile);
+  }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_COMPANY')")
-    public CompanyProfile update(@PathVariable UUID id, @RequestBody CompanyProfile c) {
-        return service.update(id, c);
-    }
+  @GetMapping("/{id}")
+  public CompanyProfile get(@PathVariable UUID id) {
+    logger.debug("Fetching company profile with ID: {}", id);
+    return companyProfileService.get(id);
+  }
 
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_COMPANY')")
-    public void delete(@PathVariable UUID id) {
-        service.delete(id);
-    }
+  @PutMapping("/{id}")
+  @PreAuthorize("hasAuthority('ROLE_COMPANY')")
+  public CompanyProfile update(@PathVariable UUID id, @RequestBody CompanyProfile companyProfile) {
+    logger.info("Updating company profile with ID: {}", id);
+    return companyProfileService.update(id, companyProfile);
+  }
+
+  @DeleteMapping("/{id}")
+  @PreAuthorize("hasAuthority('ROLE_COMPANY')")
+  public void delete(@PathVariable UUID id) {
+    logger.info("Deleting company profile with ID: {}", id);
+    companyProfileService.delete(id);
+  }
 }
 
 

@@ -1,7 +1,14 @@
 package internconnect.au.rw.internconnect.controller;
 
+import internconnect.au.rw.internconnect.model.Internship;
+import internconnect.au.rw.internconnect.service.InternshipService;
+import internconnect.au.rw.internconnect.service.SecurityService;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,63 +20,69 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import internconnect.au.rw.internconnect.model.Internship;
-import internconnect.au.rw.internconnect.service.InternshipService;
-import org.springframework.security.access.prepost.PreAuthorize;
-import java.util.UUID;
-import org.springframework.security.core.context.SecurityContextHolder;
-
+/**
+ * Controller for internship management endpoints.
+ */
 @RestController
 @RequestMapping("/api/internships")
 @CrossOrigin
 public class InternshipController {
 
-    private final InternshipService service;
+  private static final Logger logger = LoggerFactory.getLogger(InternshipController.class);
 
-    public InternshipController(InternshipService service) {
-        this.service = service;
-    }
+  private final InternshipService internshipService;
+  private final SecurityService securityService;
 
-    @GetMapping
-    public Page<Internship> list(@RequestParam(required = false) String q, Pageable pageable) {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated()) {
-            boolean isCompany = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_COMPANY"));
-            if (isCompany) {
-                String email = auth.getName();
-                return service.mine(email, pageable);
-            }
-        }
-        return service.search(q, pageable);
-    }
+  public InternshipController(InternshipService internshipService,
+      SecurityService securityService) {
+    this.internshipService = internshipService;
+    this.securityService = securityService;
+  }
 
-    @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_COMPANY')")
-    public Internship create(@RequestBody Internship i) {
-        return service.create(i);
+  @GetMapping
+  public Page<Internship> list(@RequestParam(required = false) String query,
+      Pageable pageable) {
+    if (securityService.isCompany()) {
+      String email = securityService.getCurrentUserEmail();
+      logger.debug("Listing internships for company user: {}", email);
+      return internshipService.getByCompanyEmail(email, pageable);
     }
+    logger.debug("Searching internships with query: {}", query);
+    return internshipService.search(query, pageable);
+  }
 
-    @GetMapping("/{id}")
-    public Internship get(@PathVariable UUID id) {
-        return service.get(id);
-    }
+  @PostMapping
+  @PreAuthorize("hasAuthority('ROLE_COMPANY')")
+  public Internship create(@RequestBody Internship internship) {
+    logger.info("Creating new internship");
+    return internshipService.create(internship);
+  }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_COMPANY')")
-    public Internship update(@PathVariable UUID id, @RequestBody Internship i) {
-        return service.update(id, i);
-    }
+  @GetMapping("/{id}")
+  public Internship get(@PathVariable UUID id) {
+    logger.debug("Fetching internship with ID: {}", id);
+    return internshipService.get(id);
+  }
 
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_COMPANY')")
-    public void delete(@PathVariable UUID id) {
-        service.delete(id);
-    }
+  @PutMapping("/{id}")
+  @PreAuthorize("hasAuthority('ROLE_COMPANY')")
+  public Internship update(@PathVariable UUID id, @RequestBody Internship internship) {
+    logger.info("Updating internship with ID: {}", id);
+    return internshipService.update(id, internship);
+  }
 
-    @GetMapping("/mine")
-    @PreAuthorize("hasAuthority('ROLE_COMPANY')")
-    public Page<Internship> myInternships(Pageable pageable) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return service.mine(email, pageable);
-    }
+  @DeleteMapping("/{id}")
+  @PreAuthorize("hasAuthority('ROLE_COMPANY')")
+  public void delete(@PathVariable UUID id) {
+    logger.info("Deleting internship with ID: {}", id);
+    internshipService.delete(id);
+  }
+
+  @GetMapping("/mine")
+  @PreAuthorize("hasAuthority('ROLE_COMPANY')")
+  public Page<Internship> getMyInternships(Pageable pageable) {
+    String email = securityService.getCurrentUserEmail();
+    logger.debug("Fetching internships for company user: {}", email);
+    return internshipService.getByCompanyEmail(email, pageable);
+  }
 }
